@@ -189,7 +189,7 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
   }
 
   //register users
-  public entry fun register_user (shop:&mut Shop,name:String,ctx:&mut TxContext){
+  public entry fun register_user(shop:&mut Shop,name:String,ctx:&mut TxContext){
 
     //chck ifuser is already registered to prevent registering user twice
 
