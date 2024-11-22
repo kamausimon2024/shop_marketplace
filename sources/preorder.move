@@ -1,18 +1,20 @@
 
 /// Module: preorder
 module preorder::preorder{
-   use std::string::{String};
+
+  use std::string::{String};
   use sui::balance::{Self, Balance,zero};
-   use sui::sui::SUI;
-   use sui::event;
+  use sui::sui::SUI;
+  use sui::event;
+
+  use sui::coin::{Self,Coin,split, put,take};
+  //DEFINE ERROORS
+  const ITEMNOTAVAILABLE:u64=0;
+  const EALREADYREGISTERED:u64=1;
+  const EINSUFFICIENTFUNDS:u64=2;
+  const ENOTADMIN:u64=3;
+  const EINVALID:u64=4;
   
-   use sui::coin::{Self,Coin,split, put,take};
-   //DEFINE ERROORS
-   const ITEMNOTAVAILABLE:u64=0;
-   const EALREADYREGISTERED:u64=1;
-   const EINSUFFICIENTFUNDS:u64=2;
-   const ENOTADMIN:u64=3;
-   const EINVALID:u64=4;
     public struct Shop has key,store{
         id:UID,
         shopid:ID,
@@ -24,7 +26,6 @@ module preorder::preorder{
         itemscount:u64,
          balance:Balance<SUI>
     }
-
 
     public struct Item has key, store{
         id:UID,
@@ -150,7 +151,7 @@ public entry fun add_items_to_shop(shop:&mut Shop,name:String,features:String,de
 public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut TxContext){
 
     //check if the item is available
-    assert!(itemid>=shop.itemscount,ITEMNOTAVAILABLE);
+    // assert!(itemid>=shop.itemscount,ITEMNOTAVAILABLE);
 
     //check if item is already sold or booked 
 
@@ -188,7 +189,7 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
   }
 
   //register users
-  public entry fun register_user (shop:&mut Shop,name:String,ctx:&mut TxContext){
+  public entry fun register_user(shop:&mut Shop,name:String,ctx:&mut TxContext){
 
     //chck ifuser is already registered to prevent registering user twice
 
