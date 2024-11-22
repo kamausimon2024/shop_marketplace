@@ -1,18 +1,20 @@
 
 /// Module: preorder
 module preorder::preorder{
-   use std::string::{String};
+
+  use std::string::{String};
   use sui::balance::{Self, Balance,zero};
-   use sui::sui::SUI;
-   use sui::event;
+  use sui::sui::SUI;
+  use sui::event;
+
+  use sui::coin::{Self,Coin,split, put,take};
+  //DEFINE ERROORS
+  const ITEMNOTAVAILABLE:u64=0;
+  const EALREADYREGISTERED:u64=1;
+  const EINSUFFICIENTFUNDS:u64=2;
+  const ENOTADMIN:u64=3;
+  const EINVALID:u64=4;
   
-   use sui::coin::{Self,Coin,split, put,take};
-   //DEFINE ERROORS
-   const ITEMNOTAVAILABLE:u64=0;
-   const EALREADYREGISTERED:u64=1;
-   const EINSUFFICIENTFUNDS:u64=2;
-   const ENOTADMIN:u64=3;
-   const EINVALID:u64=4;
     public struct Shop has key,store{
         id:UID,
         shopid:ID,
@@ -24,7 +26,6 @@ module preorder::preorder{
         itemscount:u64,
          balance:Balance<SUI>
     }
-
 
     public struct Item has key, store{
         id:UID,
