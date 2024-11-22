@@ -151,7 +151,7 @@ public entry fun add_items_to_shop(shop:&mut Shop,name:String,features:String,de
 public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut TxContext){
 
     //check if the item is available
-    assert!(itemid>=shop.itemscount,ITEMNOTAVAILABLE);
+    // assert!(itemid>=shop.itemscount,ITEMNOTAVAILABLE);
 
     //check if item is already sold or booked 
 
