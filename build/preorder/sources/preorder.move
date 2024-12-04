@@ -2,17 +2,21 @@
 /// Module: preorder
 module preorder::preorder{
    use std::string::{String};
-  use sui::balance::{Self, Balance,zero};
+   use sui::balance::{Self, Balance,zero};
    use sui::sui::SUI;
    use sui::event;
-  
    use sui::coin::{Self,Coin,split, put,take};
-   //DEFINE ERROORS
+
+   //DEFINE ERRORS
    const ITEMNOTAVAILABLE:u64=0;
    const EALREADYREGISTERED:u64=1;
    const EINSUFFICIENTFUNDS:u64=2;
    const ENOTADMIN:u64=3;
    const EINVALID:u64=4;
+
+
+   //define data types
+
     public struct Shop has key,store{
         id:UID,
         shopid:ID,
@@ -42,6 +46,7 @@ module preorder::preorder{
         id:UID,
         userid:u64,
         name:String,
+        useraddress: address,
        
     }
     
@@ -58,7 +63,7 @@ module preorder::preorder{
         id:UID,
         shopid:ID
     }
-    //define evnts
+    //define events
 
     public struct ShopCreated has copy,drop{
         name:String,
@@ -77,7 +82,7 @@ module preorder::preorder{
         id:ID,
         amount:u64
     }
-    //create function
+    //create functions
 
     //create shop
 
@@ -117,8 +122,11 @@ module preorder::preorder{
 
 //add items in the sore for users to see them
 
-public entry fun add_items_to_shop(shop:&mut Shop,name:String,features:String,description:String,price:u64,ctx:&mut TxContext){
+public entry fun add_items_to_shop(shop:&mut Shop,admin:&Admin,name:String,features:String,description:String,price:u64,ctx:&mut TxContext){
    
+
+   //verify its the owner performing the action
+     assert!(admin.shopid==shop.shopid,ENOTADMIN);
    let newitem=Item{
     id:object::new(ctx),
     itemid:shop.itemscount,
@@ -145,18 +153,21 @@ public entry fun add_items_to_shop(shop:&mut Shop,name:String,features:String,de
 }
 
 
-//update the price of item if te item ids not booked or sold
+//update the price of item if the item is not booked or sold
 
-public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut TxContext){
+public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64,_ctx:&mut TxContext){
 
+  //check if its the owner performing the action\
+
+     assert!(admin.shopid==shop.shopid,ENOTADMIN);
     //check if the item is available
-    assert!(itemid>=shop.itemscount,ITEMNOTAVAILABLE);
+    assert!(itemid<=shop.itemscount,ITEMNOTAVAILABLE);
 
     //check if item is already sold or booked 
 
     assert!(shop.itemsinstore[itemid].sold==false&& shop.itemsinstore[itemid].booked==false,ITEMNOTAVAILABLE);
 
-    //update the item
+    //update the item price
 
     shop.itemsinstore[itemid].price=newprice;
 }
@@ -190,18 +201,19 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
   //register users
   public entry fun register_user (shop:&mut Shop,name:String,ctx:&mut TxContext){
 
-    //chck ifuser is already registered to prevent registering user twice
+    //check if user is already registered to prevent registering user twice
 
     //create a while loop to loop all the users
 
     let mut i:u64=0;
     let totalusers:u64=shop.users.length();
-
+    let sender_address = tx_context::sender(ctx);
     while(i < totalusers){
 
         let user=&shop.users[i];
 
-        assert!(user.name!=name,EALREADYREGISTERED);
+        assert!(user.useraddress!=sender_address,EALREADYREGISTERED);
+      
 
         i=i+1;
     };
@@ -211,7 +223,8 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
     let newuser=User {
        id:object::new(ctx),
         userid:totalusers,
-        name
+        name,
+        useraddress:sender_address
     };
       shop.users.push_back(newuser);
 
@@ -225,14 +238,14 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
 
     //check if the item is available
 
-    assert!(shop.itemscount>=itemid,ITEMNOTAVAILABLE);
+    assert!(shop.itemsinstore.length()>=itemid,ITEMNOTAVAILABLE);
 
     //check if user has sufficient funds 
 
 
     assert!(amount.value()>=shop.itemsinstore[itemid].price,EINSUFFICIENTFUNDS);
 
-   //chck if item is already sold
+   //check if item is already sold
 
 
    assert!(shop.itemsinstore[itemid].sold==false && shop.itemsinstore[itemid].booked==false,ITEMNOTAVAILABLE);
@@ -253,7 +266,27 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
     shop.itemsinstore[itemid].sold=true;
 
     shop.solditems.push_back(itemid);
-  }
+
+     //make a copy of item
+      let original_item = vector::borrow(&shop.itemsinstore, itemid);
+
+      let new_item = Item {
+        id: object::new(ctx),
+        itemid: original_item.itemid,
+        name: original_item.name,
+        features: original_item.features,
+        description: original_item.description,
+        price: original_item.price,
+        sold: original_item.sold,
+        fullpaid: original_item.fullpaid,
+        booked: original_item.booked,
+    };
+    //transfer item to the user
+     transfer::transfer(new_item, ctx.sender());
+}
+
+   
+  
   //users purchase slowly
   
    public entry fun purchase_on_installments(shop:&mut Shop,itemid:u64,userid:u64,amount:Coin<SUI>,ctx:&mut TxContext){
@@ -281,7 +314,10 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
       };
      //update item status
      shop.itemsinstore[itemid].booked=true;
+
       shop.itemsoninstaallments.push_back(itempurchase);
+
+  
    }
 
   //check the balance of the aount remaining untill full purcahse of an item
@@ -307,10 +343,11 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
   public entry fun pay_installments(shop:&mut Shop,useraddress:address,amount:&mut Coin<SUI>,ctx:&mut TxContext){
     //verify the users address
       let mut index:u64=0;
+
       let length:u64=shop.itemsoninstaallments.length();
       while(index < length){
 
-        let item=&shop.itemsoninstaallments[index];
+        let item=&mut shop.itemsoninstaallments[index];
 
         if(item.by==useraddress){
           //pay amount
@@ -323,12 +360,30 @@ public entry fun UpdatePrice(shop:&mut Shop,itemid:u64,newprice:u64,_ctx:&mut Tx
          put(&mut shop.balance,paid);
          let itemid=item.itemid;
          shop.itemsinstore[itemid].sold=true;
-        };
-        index=index+1;
+
+         //transfer item to buyer
+        let original_item = vector::borrow(&shop.itemsinstore, item.itemid);
+
+        let new_item = Item {
+          id: object::new(ctx),
+          itemid: original_item.itemid,
+          name: original_item.name,
+          features: original_item.features,
+          description: original_item.description,
+          price: original_item.price,
+          sold: original_item.sold,
+          fullpaid: original_item.fullpaid,
+           booked: original_item.booked,
+    };
+    //transfer item to the user
+     transfer::transfer(new_item, ctx.sender());
+        
       };
-      abort 0
+      index=index+1;
+  };
+    abort 0
   }
-  //owner withdreeaw amount
+  //owner withdraw amount
 
    public entry fun withdraw(
         admin: &Admin,      
