@@ -26,6 +26,7 @@ module preorder::preorder{
         users:vector<User>,
         itemsoninstaallments:vector<Installments>,
         itemscount:u64,
+        questioncomplain:vector<QuestionComplain>,
          balance:Balance<SUI>
     }
 
@@ -48,6 +49,13 @@ module preorder::preorder{
         name:String,
         useraddress: address,
        
+    }
+
+    public struct QuestionComplain has key,store{
+      id:UID,
+      by:address,
+      title:String,
+      qcomplain:String
     }
     
     public struct Installments has key,store{
@@ -100,7 +108,8 @@ module preorder::preorder{
             users:vector::empty(),
             itemscount:0,
             balance:zero<SUI>(),
-            itemsoninstaallments:vector::empty()
+            itemsoninstaallments:vector::empty(),
+            questioncomplain:vector::empty()
         };
 
          transfer::transfer(Admin {
@@ -232,7 +241,26 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
         name
       })
     }
-  //users purchahse full item
+
+  //complain or ask a question about shop services
+
+  public entry fun question_complain(shop:&mut Shop,title:String,qcomplain:String,ctx:&mut TxContext){
+
+   //create a new complain or question
+   let new_qcompalin=QuestionComplain{
+       id:object::new(ctx),
+      by:ctx.sender(),
+      title,
+      qcomplain
+   };
+
+   //add it to the vector od questioncompliment
+   shop.questioncomplain.push_back(new_qcompalin);
+
+   
+
+  }
+  //users purchase full item
 
   public entry fun user_purchase_item_fully(shop:&mut Shop,itemid:u64,amount:&mut Coin<SUI>,ctx:&mut TxContext){
 
@@ -254,7 +282,7 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
 
     let price=shop.itemsinstore[itemid].price;
 
-    //dedact the amount
+    //reduct the amount
 
     let paid=amount.split(price,ctx);
 
@@ -291,14 +319,14 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
   
    public entry fun purchase_on_installments(shop:&mut Shop,itemid:u64,userid:u64,amount:Coin<SUI>,ctx:&mut TxContext){
 
-      //ensure availability of item iin the shop
+      //ensure availability of item in the shop
       assert!(shop.itemsinstore.length()>= itemid,ITEMNOTAVAILABLE);
 
      //ensure items is not sold or already booked
      assert!(shop.itemsinstore[itemid].sold==false && shop.itemsinstore[itemid].booked==false,ITEMNOTAVAILABLE);
-      //verify if the amount is greater than zero and is less than item actual price of the item
+      //verify if the amount is less than item actual price of the item
      let targetamount=amount.value();
-      assert!(amount.value()>0 && amount.value()< shop.itemsinstore[itemid].price,EINVALID);
+      assert!( amount.value()< shop.itemsinstore[itemid].price,EINVALID);
       let pbalance = coin::into_balance(amount);
 
        balance::join(&mut shop.balance, pbalance);
@@ -320,7 +348,7 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
   
    }
 
-  //check the balance of the aount remaining untill full purcahse of an item
+  //check the balance of the amount remaining untill full purchase of an item
    
     public entry fun check_remaining_installment_amount(shop:&mut Shop,useraddress:address,_ctx:&mut TxContext):u64{
 
@@ -397,7 +425,7 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
 
         assert!(admin.shopid==shop.shopid,ENOTADMIN);
         //verify amount is sufficient
-      assert!(amount > 0 && amount <= shop.balance.value(),EINSUFFICIENTFUNDS);
+      assert!(amount <= shop.balance.value(),EINSUFFICIENTFUNDS);
         
 
         //widthdrwaw amount
@@ -412,7 +440,7 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
        })
         
     }
-  //users check the remaing amount to full purchase
+ 
 
 }
 

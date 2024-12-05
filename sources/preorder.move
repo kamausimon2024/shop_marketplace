@@ -26,6 +26,7 @@ module preorder::preorder{
         users:vector<User>,
         itemsoninstaallments:vector<Installments>,
         itemscount:u64,
+        questioncomplain:vector<QuestionComplain>,
          balance:Balance<SUI>
     }
 
@@ -48,6 +49,13 @@ module preorder::preorder{
         name:String,
         useraddress: address,
        
+    }
+
+    public struct QuestionComplain has key,store{
+      id:UID,
+      by:address,
+      title:String,
+      qcomplain:String
     }
     
     public struct Installments has key,store{
@@ -100,7 +108,8 @@ module preorder::preorder{
             users:vector::empty(),
             itemscount:0,
             balance:zero<SUI>(),
-            itemsoninstaallments:vector::empty()
+            itemsoninstaallments:vector::empty(),
+            questioncomplain:vector::empty()
         };
 
          transfer::transfer(Admin {
@@ -232,6 +241,25 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
         name
       })
     }
+
+  //complain or ask a question about shop services
+
+  public entry fun question_complain(shop:&mut Shop,title:String,qcomplain:String,ctx:&mut TxContext){
+
+   //create a new complain or question
+   let new_qcompalin=QuestionComplain{
+       id:object::new(ctx),
+      by:ctx.sender(),
+      title,
+      qcomplain
+   };
+
+   //add it to the vector od questioncompliment
+   shop.questioncomplain.push_back(new_qcompalin);
+
+   
+
+  }
   //users purchase full item
 
   public entry fun user_purchase_item_fully(shop:&mut Shop,itemid:u64,amount:&mut Coin<SUI>,ctx:&mut TxContext){
@@ -320,7 +348,7 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
   
    }
 
-  //check the balance of the aount remaining untill full purcahse of an item
+  //check the balance of the amount remaining untill full purchase of an item
    
     public entry fun check_remaining_installment_amount(shop:&mut Shop,useraddress:address,_ctx:&mut TxContext):u64{
 
@@ -385,7 +413,7 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
   }
   //owner withdraw amount
 
-   public entry fun withdraw(
+  public entry fun withdraw(
         admin: &Admin,      
         shop:&mut Shop,
         amount:u64,
@@ -395,8 +423,8 @@ public entry fun UpdatePrice(shop:&mut Shop,admin:&Admin,itemid:u64,newprice:u64
 
       //verify its admin performing the action
 
-        assert!(admin.shopid==shop.shopid,ENOTADMIN);
-        //verify amount is sufficient
+      assert!(admin.shopid==shop.shopid,ENOTADMIN);
+      //verify amount is sufficient
       assert!(amount <= shop.balance.value(),EINSUFFICIENTFUNDS);
         
 
